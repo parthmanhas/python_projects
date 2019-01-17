@@ -40,12 +40,29 @@ temp = []
 class Anime:
     title=""
     latest_ep=""
+    previous_ep =""
     latest_ep_link=""
     
+    def __init__(self):
+        self.previous_ep = self.latest_ep
+
     def __str__(self):
         return self.title + ":\n" + self.latest_ep + "\n" + self.latest_ep_link + '\n'
 
 anime = [Anime() for i in range(10)]
+
+with open("top10_anime_kissanime_with_links.txt",'r') as file:
+    c = file.read()
+
+try:
+    c = c.split('\n\n')
+
+    for i in enumerate(c):
+        temp = i[1].split('\n')[1]
+        print(temp)
+        anime[i[0]].previous_ep = temp
+except:
+    pass
 
 for i in enumerate(elem):
     if(i[0]<10):
@@ -56,9 +73,12 @@ for i in enumerate(elem):
     
 with open("top10_anime_kissanime_with_links.txt",'w') as file:
     for i in anime:
-    	print(i)
-    	try:
-    		file.write(i.title + ':\n' + i.latest_ep + '\n' + i.latest_ep_link + '\n\n')
-    	except:
-    		pass
+        print(i)
+        try:
+            file.write(i.title + ':\n' + i.latest_ep + '\n')
+            if(i.previous_ep != i.latest_ep):
+                file.write("UPDATED!!!\n")
+            file.write(i.latest_ep_link + '\n\n')
+        except:
+            pass
 br.quit()
