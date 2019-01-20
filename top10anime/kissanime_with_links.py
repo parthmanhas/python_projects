@@ -62,17 +62,23 @@ anime = [Anime() for i in range(10)]
 
 
 for i in enumerate(elem):
-    print(i[0])
     if(i[0]<10):
         anime[i[0]].title = i[1].find_all('a')[1].text
         anime[i[0]].latest_ep = i[1].find_all('p')[1].text.strip('Latest:\xa0')
         anime[i[0]].latest_ep_link = r'https://kissanime.ru/' + i[1].find_all('p')[1].find('a').get('href')
 
+        
         cur.execute('''SELECT latest_ep FROM Anime WHERE title=?''', (anime[i[0]].title,))
         previous_ep_tmp = cur.fetchone()
-        if(previous_ep_tmp != anime[i[0]].latest_ep):
+        print(previous_ep_tmp)
+        if(previous_ep_tmp[0] != None and previous_ep_tmp[0] != anime[i[0]].latest_ep):
             anime[i[0]].updated = True
-        cur.execute('''INSERT INTO Anime values(?,?,?)''', (anime[i[0]].title, anime[i[0]].latest_ep, anime[i[0]].latest_ep_link))
+        elif(previous_ep_tmp[0] != None and previous_ep_tmp[0] == anime[i[0]].latest_ep):
+            anime[i[0]].updated = False
+            cur.execute('''UPDATE Anime SET latest_ep=? WHERE title=? ''', (anime[i[0]].latest_ep, anime[i[0]].title,))
+        else:
+            print("insert")
+            cur.execute('''INSERT INTO Anime values(?,?,?)''', (anime[i[0]].title, anime[i[0]].latest_ep, anime[i[0]].latest_ep_link,))
 
 conn.commit()
     
@@ -81,15 +87,16 @@ with open("top10_anime_kissanime_with_links.txt",'w') as file:
     data = cur.fetchall()
 
     for i in enumerate(data):
-        file.write(i[1][0] + '\n' + i[1][1])
-        if(anime[i[0]].updated):
-            file.write("\nUPDATED!!!!\n")
-            anime[i[0]].updated = False
-        print(i[1][2])
-        try:
-            file.write(i[1][2])
-        except:
-            pass
-        file.write('\n\n')
+        if(i[0]<10):
+            file.write(i[1][0] + '\n' + i[1][1])
+            if(anime[i[0]].updated):
+                file.write("\nUPDATED!!!!\n")
+                anime[i[0]].updated = False
+            print(i[1][2])
+            try:
+                file.write('\n'+i[1][2])
+            except:
+                pass
+            file.write('\n\n')
 cur.close()
 br.quit()

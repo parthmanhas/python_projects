@@ -9,6 +9,9 @@ cur.execute('''
     ''')
 
 cur.execute('''SELECT latest_ep FROM Anime WHERE title=?''', ("The Promised Neverland",))
-animes = cur.fetchone()
+current_ep = cur.fetchone()
 
-print(animes)
+if(current_ep != 'Episode 003'):
+    cur.execute('''UPDATE Anime SET latest_ep=? WHERE title=?''',('Episode 003', "The Promised Neverland",))
+conn.commit()
+print(current_ep)
