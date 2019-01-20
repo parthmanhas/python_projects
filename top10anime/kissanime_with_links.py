@@ -6,7 +6,15 @@ from selenium.webdriver.common.by import By
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup as bs
+import sqlite3
 
+
+conn = sqlite3.connect("anime.db")
+cur = conn.cursor()
+
+cur.execute('''
+    CREATE TABLE IF NOT EXISTS Anime (title TEXT, latest_ep TEXT, latest_ep_link TEXT)
+    ''')
 
 CHROME_PATH = 'C:\\Program Files (x86)\\Google\\Chrome\\Application\\chrome.exe'
 CHROMEDRIVER_PATH = r'C:\Users\141\AppData\Local\Programs\Python\Python37\chromedriver.exe'
@@ -42,6 +50,7 @@ class Anime:
     latest_ep=""
     previous_ep =""
     latest_ep_link=""
+    updated = False
     
     def __init__(self):
         self.previous_ep = self.latest_ep
@@ -51,34 +60,36 @@ class Anime:
 
 anime = [Anime() for i in range(10)]
 
-with open("top10_anime_kissanime_with_links.txt",'r') as file:
-    c = file.read()
-
-try:
-    c = c.split('\n\n')
-
-    for i in enumerate(c):
-        temp = i[1].split('\n')[1]
-        print(temp)
-        anime[i[0]].previous_ep = temp
-except:
-    pass
 
 for i in enumerate(elem):
+    print(i[0])
     if(i[0]<10):
         anime[i[0]].title = i[1].find_all('a')[1].text
         anime[i[0]].latest_ep = i[1].find_all('p')[1].text.strip('Latest:\xa0')
         anime[i[0]].latest_ep_link = r'https://kissanime.ru/' + i[1].find_all('p')[1].find('a').get('href')
 
+        cur.execute('''SELECT latest_ep FROM Anime WHERE title=?''', (anime[i[0]].title,))
+        previous_ep_tmp = cur.fetchone()
+        if(previous_ep_tmp != anime[i[0]].latest_ep):
+            anime[i[0]].updated = True
+        cur.execute('''INSERT INTO Anime values(?,?,?)''', (anime[i[0]].title, anime[i[0]].latest_ep, anime[i[0]].latest_ep_link))
+
+conn.commit()
     
 with open("top10_anime_kissanime_with_links.txt",'w') as file:
-    for i in anime:
-        print(i)
+    cur.execute('''SELECT * FROM Anime''')
+    data = cur.fetchall()
+
+    for i in enumerate(data):
+        file.write(i[1][0] + '\n' + i[1][1])
+        if(anime[i[0]].updated):
+            file.write("\nUPDATED!!!!\n")
+            anime[i[0]].updated = False
+        print(i[1][2])
         try:
-            file.write(i.title + ':\n' + i.latest_ep + '\n')
-            if(i.previous_ep != i.latest_ep):
-                file.write("UPDATED!!!\n")
-            file.write(i.latest_ep_link + '\n\n')
+            file.write(i[1][2])
         except:
             pass
+        file.write('\n\n')
+cur.close()
 br.quit()
