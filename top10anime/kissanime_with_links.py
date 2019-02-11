@@ -7,6 +7,8 @@ from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup as bs
 import sqlite3
+from win10toast import ToastNotifier
+import anime_class
 
 
 conn = sqlite3.connect("anime.db")
@@ -42,46 +44,40 @@ ps = br.page_source
 
 soup = bs(ps,"html.parser")
 
+#find all elements of the top 10 anime list
 elem = soup.find_all("div",{"style":"position:relative"})
 temp = []
 
-class Anime:
-    title=""
-    latest_ep=""
-    previous_ep =""
-    latest_ep_link=""
-    updated = False
-    
-    def __init__(self):
-        self.previous_ep = self.latest_ep
-
-    def __str__(self):
-        return self.title + ":\n" + self.latest_ep + "\n" + self.latest_ep_link + '\n'
-
-anime = [Anime() for i in range(10)]
 
 
+#instantiate 10 instances of Anime Class
+anime = [anime_class.Anime() for i in range(10)]
+toast = ToastNotifier()
+
+#fill up the empty Anime instnaces with information grabbed from the page like title, latest episode, latest episode link
 for i in enumerate(elem):
     if(i[0]<10):
         anime[i[0]].title = i[1].find_all('a')[1].text
         anime[i[0]].latest_ep = i[1].find_all('p')[1].text.strip('Latest:\xa0')
         anime[i[0]].latest_ep_link = r'https://kissanime.ru/' + i[1].find_all('p')[1].find('a').get('href')
-
-        
+        #print(anime[i[0]])
+        #check if anime has been updated or not
+        #debugging
+        #import pdb ; pdb.set_trace()
+        #Select from db latest episode of current anime being scanned
         cur.execute('''SELECT latest_ep FROM Anime WHERE title=?''', (anime[i[0]].title,))
         previous_ep_tmp = cur.fetchone()
         print(previous_ep_tmp)
-        if(previous_ep_tmp[0] != None and previous_ep_tmp[0] != anime[i[0]].latest_ep):
-            anime[i[0]].updated = True
-        elif(previous_ep_tmp[0] != None and previous_ep_tmp[0] == anime[i[0]].latest_ep):
-            anime[i[0]].updated = False
-            cur.execute('''UPDATE Anime SET latest_ep=? WHERE title=? ''', (anime[i[0]].latest_ep, anime[i[0]].title,))
-        else:
-            print("insert")
-            cur.execute('''INSERT INTO Anime values(?,?,?)''', (anime[i[0]].title, anime[i[0]].latest_ep, anime[i[0]].latest_ep_link,))
-
+        if(previous_ep_tmp != None):
+            # if count of episode of current episode is greater than selected anime from db, then update db and toast it Bro!
+            if(int(anime[i[0]].latest_ep.split()[1]) > int(previous_ep_tmp[0].split()[1])):
+                cur.execute('''UPDATE Anime SET latest_ep = ? WHERE title = ?''', (anime[i[0]].latest_ep, anime[i[0]].title,))
+                print(anime[i[0]].title + " UPDATED!!!!")
+                toast.show_toast("ANIME UPDATED!!", anime[i[0]].title + " UPDATED!!!!")
+                
 conn.commit()
-    
+
+#initial test version
 with open("top10_anime_kissanime_with_links.txt",'w') as file:
     cur.execute('''SELECT * FROM Anime''')
     data = cur.fetchall()
@@ -92,7 +88,7 @@ with open("top10_anime_kissanime_with_links.txt",'w') as file:
             if(anime[i[0]].updated):
                 file.write("\nUPDATED!!!!\n")
                 anime[i[0]].updated = False
-            print(i[1][2])
+            #print(i[1][2])
             try:
                 file.write('\n'+i[1][2])
             except:
